@@ -1111,10 +1111,14 @@
     "rotation": 20
   },
   "ES->MA": {
+    "capacity": [
+      -1359,
+      1359
+    ],
     "lonlat": [
       -5.614929,
       35.952597
-    ],
+    ],1359
     "parsers": {
       "exchange": "ESIOS.fetch_exchange"
     },
