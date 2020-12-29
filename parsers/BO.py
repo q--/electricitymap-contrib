@@ -8,6 +8,8 @@ import requests
 import pandas as pd
 # The BeautifulSoup library is used parse web html
 from bs4 import BeautifulSoup
+import re
+
 
 tz_bo = 'America/La_Paz'
 
@@ -49,6 +51,10 @@ def webparser(resp):
     obj[obj < 0] = 0
 
     return obj
+
+def extract_xsrf_token(html):
+  """Extracts XSRF token from the source code of the generation graph page"""
+  return re.search(r'var ttoken = "([a-f0-9]+)";', html).group(1)
 
 
 def fetch_hourly_production(zone_key, obj, date):
@@ -115,6 +121,8 @@ def fetch_production(zone_key='BO', session=None, target_datetime=None, logger=N
     """
     if target_datetime:
         raise NotImplementedError('This parser is not yet able to parse past dates')
+        
+    r = session or requests.session()
 
     # Define actual and previous day (for midnight data).
     now = arrow.now(tz=tz_bo)
@@ -123,12 +131,17 @@ def fetch_production(zone_key='BO', session=None, target_datetime=None, logger=N
         'YYYY-MM-DD')
 
     # initial path for url to request
-    url_init = 'http://www.cndc.bo/media/archivos/graf/gene_hora/despacho_diario.php?fechag='
+    url_init = 'https://www.cndc.bo/gene/dat/gene.php?fechag='
+    
+    # XSRF token for the initial request
+    xsrf_token_init = extract_xsrf_token(r.get("https://www.cndc.bo/gene/index.php").text)
 
     # Start with data for previous day in order to get midnight data.
     url = url_init + past_formatted_date
-    r = session or requests.session()
-    response = r.get(url)
+    print(xsrf_token_init)
+    response = r.get(url, headers={'X-Csrf-Token': xsrf_token_init})
+    
+    print(response)
     obj = webparser(response)
     data_yesterday = fetch_hourly_production(zone_key, obj, past_formatted_date)
 
@@ -194,7 +207,7 @@ def fetch_generation_forecast(zone_key='BO', session=None, target_datetime=None,
     formatted_date = arrow.now(tz=tz_bo).format('YYYY-MM-DD')
 
     # initial path for url to request
-    url_init = 'http://www.cndc.bo/media/archivos/graf/gene_hora/despacho_diario.php?fechag='
+    url_init = 'https://www.cndc.bo/gene/dat/gene.php?fechag='
     url = url_init + formatted_date
 
     r = session or requests.session()
